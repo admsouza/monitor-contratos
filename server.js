@@ -18,6 +18,7 @@ const WHATSAPP_LOG_FILE = process.env.WHATSAPP_LOG_FILE || '/data/whatsapp_log.j
 try { if (!fs.existsSync('/data')) fs.mkdirSync('/data', { recursive: true }); } catch(e) {}
 
 app.use(express.json({ limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
