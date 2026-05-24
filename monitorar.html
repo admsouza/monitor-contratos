@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📊 Monitor de Contratos</title>
+<style>
+:root {
+  --bg:#0f0f13; --card:#1a1a24; --card2:#22222f;
+  --border:#2a2a3a; --text:#e8e8ed; --text-dim:#8a8a9a;
+  --red:#ef4444; --orange:#f97316; --yellow:#eab308;
+  --lime:#84cc16; --green:#22c55e; --blue:#3b82f6;
+  --red-bg:rgba(239,68,68,0.1); --orange-bg:rgba(249,115,22,0.1);
+  --yellow-bg:rgba(234,179,8,0.1); --green-bg:rgba(34,197,94,0.1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+a{color:var(--blue);text-decoration:none}
+.header{background:var(--card);border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.header h1{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px}
+.header .sub{font-size:12px;color:var(--text-dim)}
+.ug-bar{display:flex;align-items:center;gap:8px;margin-left:auto}
+.ug-bar input{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:13px;width:100px;text-align:center}
+.ug-bar input:focus{outline:none;border-color:var(--blue)}
+.ug-bar button{padding:6px 16px;border-radius:6px;border:none;background:var(--blue);color:#fff;font-weight:600;font-size:12px;cursor:pointer}
+.stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;padding:16px 24px}
+.stat-card{cursor:pointer;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;text-align:center;transition:transform .15s,border-color .2s}
+.stat-card:hover{transform:translateY(-2px);border-color:var(--text-dim)}
+.stat-card.ativo{border-color:var(--text)!important;border-width:2px}
+.stat-card .num{font-size:22px;font-weight:700}
+.stat-card .label{font-size:11px;color:var(--text-dim);margin-top:2px}
+.stat-card.expirado .num{color:var(--red)}
+.stat-card.alerta .num{color:var(--orange)}
+.stat-card.urgente .num{color:var(--yellow)}
+.stat-card.atencao .num{color:var(--lime)}
+.stat-card.vigente .num{color:var(--green)}
+.stat-card.total .num{color:var(--blue)}
+.container{max-width:1400px;margin:0 auto;padding:0 24px 40px}
+.section-title{font-size:14px;font-weight:600;margin:20px 0 12px;display:flex;align-items:center;gap:8px}
+.contratos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:10px}
+.contrato-card{cursor:pointer;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;transition:border-color .2s,border-width .2s,transform .15s;border-left:4px solid var(--border);position:relative}
+.contrato-card:hover{transform:translateY(-1px);border-color:var(--text-dim)}
+.contrato-card.expirado{border-left-color:var(--red);background:var(--red-bg)}
+.contrato-card.critico{border-left-color:var(--orange);background:var(--orange-bg)}
+.contrato-card.urgente{border-left-color:var(--yellow);background:var(--yellow-bg)}
+.contrato-card.atencao{border-left-color:var(--lime);background:rgba(132,204,22,0.05)}
+.contrato-card.vigente{border-left-color:var(--green)}
+.contrato-card .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.contrato-card .numero{font-weight:700;font-size:14px}
+.contrato-card .status-badge{font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap}
+.contrato-card .body{font-size:12px;line-height:1.5;color:var(--text-dim)}
+.contrato-card .body .field{display:flex;justify-content:space-between;padding:2px 0}
+.contrato-card .body .field .val{color:var(--text);font-weight:500}
+.contrato-card .body .field .val.money{color:var(--green)}
+.contrato-card .objeto{font-size:11px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);color:var(--text-dim);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.loading{text-align:center;padding:60px 20px;color:var(--text-dim)}
+.loading .spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error{text-align:center;padding:40px;color:var(--red)}
+.entidade-info{font-size:12px;color:var(--text-dim);padding:4px 24px 0}
+.info-bar{display:flex;gap:16px;padding:8px 24px 16px;font-size:12px;color:var(--text-dim);flex-wrap:wrap}
+.info-bar span{display:flex;align-items:center;gap:4px}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:14px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto;padding:20px 22px}
+.modal-box .m-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.modal-box .m-top .m-title{font-size:16px;font-weight:700}
+.modal-box .m-close{cursor:pointer;font-size:20px;color:var(--text-dim);line-height:1}
+.modal-box .m-section{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin:12px 0 6px}
+.modal-box .m-row{display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid var(--border);line-height:1.6}
+.modal-box .m-row:last-child{border-bottom:none}
+.modal-box .m-row .m-label{color:var(--text-dim)}
+.modal-box .m-row .m-val{color:var(--text);font-weight:500;text-align:right;max-width:60%}
+.modal-box .m-row .m-val.money{color:var(--green)}
+.modal-box .m-objeto{font-size:12px;color:var(--text);line-height:1.5;margin-top:4px;padding:8px 10px;background:var(--card2);border-radius:6px}
+.modal-box .m-aditivos{font-size:11px;padding:6px 8px;margin-top:6px;background:rgba(59,130,246,0.08);border-radius:6px;line-height:1.5}
+.hidden{display:none!important}
+@media(max-width:600px){
+  .header{flex-direction:column;align-items:stretch}
+  .ug-bar{margin-left:0}
+  .contratos-grid{grid-template-columns:1fr}
+  .stats-bar{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 Monitor de Contratos</h1>
+  <span class="sub">Acompanhamento de vencimentos</span>
+  <div class="ug-bar">
+    <select id="ano-select" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:12px;cursor:pointer">
+      <option value="2024">Desde 2024</option>
+      <option value="2025">Desde 2025</option>
+      <option value="2026" selected>Desde 2026</option>
+    </select>
+    <input type="text" id="ug-input" placeholder="Código UG" value="201115" maxlength="6">
+    <button onclick="carregar()">🔍 Buscar</button>
+    <button onclick="abrirNotificacoes()" style="padding:6px 14px;border-radius:6px;border:none;background:var(--green);color:#fff;font-weight:600;font-size:12px;cursor:pointer">🔔 Notificações</button>
+  </div>
+</div>
+
+<div id="entidade-info" class="entidade-info"></div>
+<div id="stats-bar" class="stats-bar"></div>
+<div id="info-bar" class="info-bar"></div>
+<div id="container" class="container">
+  <div class="loading"><div class="spinner"></div>Carregando contratos...</div>
+</div>
+
+<div id="modal" class="modal-overlay hidden" onclick="fecharModal(event)">
+  <div class="modal-box" id="modal-box" onclick="event.stopPropagation()">
+    <div class="m-top">
+      <div class="m-title" id="modal-title">Detalhes</div>
+      <span class="m-close" onclick="fecharModal()">✕</span>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- NOTIFICAÇÕES MODAL -->
+<div id="notif-modal" class="modal-overlay hidden" onclick="if(event.target===this)fecharNotif()">
+  <div class="modal-box" style="max-width:700px" onclick="event.stopPropagation()">
+    <div class="m-top">
+      <div class="m-title">🔔 Central de Notificações</div>
+      <span class="m-close" onclick="fecharNotif()">✕</span>
+    </div>
+    <div id="notif-body">
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="notif-tab ativo" data-mod="gestor" onclick="selModulo('gestor')" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-weight:600;font-size:12px;cursor:pointer">🏛️ Gestor</button>
+        <button class="notif-tab" data-mod="fornecedor" onclick="selModulo('fornecedor')" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-weight:600;font-size:12px;cursor:pointer">🏢 Fornecedor</button>
+        <button class="notif-tab" data-mod="cpl" onclick="selModulo('cpl')" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-weight:600;font-size:12px;cursor:pointer">📋 CPL</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button onclick="novoContato()" style="padding:6px 16px;border-radius:6px;border:none;background:var(--blue);color:#fff;font-weight:600;font-size:12px;cursor:pointer">＋ Novo contato</button>
+        <button onclick="dispararNotificacoes()" style="padding:6px 16px;border-radius:6px;border:none;background:var(--orange);color:#fff;font-weight:600;font-size:12px;cursor:pointer">📨 Disparar agora</button>
+        <button onclick="mostrarLog()" style="padding:6px 16px;border-radius:6px;border:none;background:var(--card2);color:var(--text);font-weight:600;font-size:12px;cursor:pointer;border:1px solid var(--border)">📄 Histórico</button>
+      </div>
+      <div id="notif-contatos"></div>
+      <div id="notif-form" style="display:none"></div>
+      <div id="notif-log" style="display:none"></div>
+      <div id="notif-resultado" style="font-size:12px;margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+const ENTIDADES = {};
+let CONTRATOS_DATA = {};
+let ALL_CONTRATOS = [];
+let FILTRO_ATIVO = null;
+
+// Carregar entidades
+fetch(API + '/api/entidades')
+  .then(r => r.json())
+  .then(d => { d.entidades.forEach(e => { ENTIDADES[e.codigo] = e; }); carregar(); })
+  .catch(() => carregar());
+
+function formatarValor(v) {
+  return 'R$ ' + v.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function diasColor(dias) {
+  if (dias === null) return '#6b7280';
+  if (dias < 0) return 'var(--red)';
+  if (dias <= 15) return 'var(--orange)';
+  if (dias <= 30) return 'var(--yellow)';
+  if (dias <= 60) return 'var(--lime)';
+  return 'var(--green)';
+}
+
+async function carregar() {
+  const ug = document.getElementById('ug-input').value.trim() || '201115';
+  const ano = document.getElementById('ano-select').value;
+  
+  // Entidade info
+  const ent = ENTIDADES[ug];
+  document.getElementById('entidade-info').textContent = ent ? `${ent.codigo} - ${ent.nome}` : `UG: ${ug}`;
+
+  const container = document.getElementById('container');
+  container.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando contratos...</div>';
+
+  try {
+    const res = await fetch(`${API}/api/monitorar/contratos/${ug}?ano_inicio=${ano}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    if (data.status === 'error') throw new Error(data.msg);
+
+    const stats = data.estatisticas;
+    
+    // Stats bar
+    document.getElementById('stats-bar').innerHTML = `
+      <div class="stat-card total" onclick="filtrar('total')"><div class="num">${stats.total}</div><div class="label">📋 Total Contratos</div></div>
+      <div class="stat-card expirado" onclick="filtrar('expirado')"><div class="num">${stats.expirados}</div><div class="label">⚠️ Vencidos</div></div>
+      <div class="stat-card alerta" onclick="filtrar('critico')"><div class="num">${stats.critico + stats.vence_hoje}</div><div class="label">🚨 Críticos (≤15d)</div></div>
+      <div class="stat-card urgente" onclick="filtrar('urgente')"><div class="num">${stats.urgente}</div><div class="label">🔶 Urgentes (≤30d)</div></div>
+      <div class="stat-card atencao" onclick="filtrar('atencao')"><div class="num">${stats.atencao}</div><div class="label">🟡 Atenção (≤60d)</div></div>
+      <div class="stat-card vigente" onclick="filtrar('vigente')"><div class="num">${stats.vigentes}</div><div class="label">✅ Vigentes</div></div>
+      <div class="stat-card" style="border-color:var(--blue)33" onclick="filtrar('com_aditivos')"><div class="num" style="color:var(--blue)">${stats.com_aditivos||0}</div><div class="label">📋 Com aditivos</div></div>
+    `;
+
+    // Info bar
+    document.getElementById('info-bar').innerHTML = `
+      <span>📅 Consulta: ${data.data_consulta}</span>
+      <span>💰 Valor total: ${formatarValor(stats.valor_total)}</span>
+      <span>🚨 Alertas: <strong style="color:var(--orange)">${stats.alertas}</strong></span>
+    `;
+
+    const contratos = data.contratos || [];
+    contratos.forEach(c => { CONTRATOS_DATA[c.numero_contrato] = c; });
+    ALL_CONTRATOS = contratos;
+    FILTRO_ATIVO = null;
+    renderContratos();
+
+  } catch (err) {
+    container.innerHTML = `<div class="error">❌ Erro ao carregar: ${err.message}</div>`;
+  }
+}
+
+// Enter key no input
+document.getElementById('ug-input').addEventListener('keydown', e => { if (e.key === 'Enter') carregar(); });
+
+function fecharModal() {
+  document.getElementById('modal').classList.add('hidden');
+}
+
+function filtrar(status) {
+  FILTRO_ATIVO = FILTRO_ATIVO === status ? null : status;
+  // Atualiza destaque nos cards
+  document.querySelectorAll('.stat-card').forEach(el => el.classList.remove('ativo'));
+  if (FILTRO_ATIVO) {
+    const idx = {total:0, expirado:1, critico:2, urgente:3, atencao:4, vigente:5, com_aditivos:6};
+    const cards = document.querySelectorAll('.stat-card');
+    if (cards[idx[FILTRO_ATIVO]]) cards[idx[FILTRO_ATIVO]].classList.add('ativo');
+  }
+  renderContratos();
+}
+
+function renderContratos() {
+  const container = document.getElementById('container');
+  
+  let lista = ALL_CONTRATOS;
+  
+  // Aplicar filtro
+  if (FILTRO_ATIVO && FILTRO_ATIVO !== 'total') {
+    if (FILTRO_ATIVO === 'com_aditivos') {
+      lista = ALL_CONTRATOS.filter(c => c.tem_aditivos);
+    } else {
+      lista = ALL_CONTRATOS.filter(c => c.status === FILTRO_ATIVO);
+    }
+  }
+  
+  if (lista.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim)">Nenhum contrato encontrado'+(FILTRO_ATIVO ? ' com este filtro.' : '.')+'</div>';
+    return;
+  }
+
+  // Agrupar por status
+  const grupos = {
+    expirado: { label: '⚠️ Vencidos', contratos: [] },
+    vence_hoje: { label: '🚨 Vencem HOJE', contratos: [] },
+    critico: { label: '🚨 Críticos (≤15d)', contratos: [] },
+    urgente: { label: '🔶 Urgentes (≤30d)', contratos: [] },
+    atencao: { label: '🟡 Atenção (≤60d)', contratos: [] },
+    vigente: { label: '✅ Vigentes', contratos: [] },
+    indefinido: { label: '❓ Sem data definida', contratos: [] }
+  };
+
+  lista.forEach(c => {
+    if (grupos[c.status]) grupos[c.status].contratos.push(c);
+  });
+
+  let html = '';
+  if (FILTRO_ATIVO) {
+    html += '<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px">Filtrando: <strong style="color:var(--text)">'+document.querySelector('.stat-card.ativo .label')?.textContent||FILTRO_ATIVO+'</strong> — <span style="cursor:pointer;color:var(--blue);text-decoration:underline" onclick="filtrar(null)">limpar filtro</span></div>';
+    // Quando filtrado, mostra cards sem agrupar
+    html += '<div class="contratos-grid">';
+    lista.forEach(c => {
+      html += renderCard(c);
+    });
+    html += '</div>';
+  } else {
+    for (const [key, grupo] of Object.entries(grupos)) {
+      if (grupo.contratos.length === 0) continue;
+      html += '<div class="section-title">'+grupo.label+' <span style="font-size:12px;color:var(--text-dim)">('+grupo.contratos.length+')</span></div>';
+      html += '<div class="contratos-grid">';
+      grupo.contratos.forEach(c => { html += renderCard(c); });
+      html += '</div>';
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+function renderCard(c) {
+  return `
+    <div class="contrato-card ${c.status}" onclick="abrirDetalhe('${c.numero_contrato}')">
+      <div class="top">
+        <span class="numero">#${c.numero_contrato}</span>
+        <span class="status-badge" style="background:${c.status_cor}22;color:${c.status_cor};border:1px solid ${c.status_cor}44">${c.status_label}</span>
+      </div>
+      <div class="body">
+        <div class="field"><span>📅 Início</span><span class="val">${c.inicio || '-'}</span></div>
+        <div class="field"><span>📅 Término</span><span class="val">${c.fim || '-'}${c.data_fim_original && c.data_fim_original !== c.fim ? ' <span style="font-size:10px;color:var(--text-dim);text-decoration:line-through">'+c.data_fim_original+'</span>' : ''}</span></div>
+        <div class="field"><span>💰 Valor</span><span class="val money">${formatarValor(c.valor)}</span>${c.valor_original && c.valor_original !== c.valor ? '<span style="font-size:10px;color:var(--text-dim);text-decoration:line-through;margin-left:4px">'+formatarValor(c.valor_original)+'</span>' : ''}</div>
+        <div class="field"><span>📅 Ordenado a partir</span><span class="val">${c.ordenado_apartir || c.inicio || '-'}</span></div>
+        <div class="field"><span>📋 Empenhos</span><span class="val">${c.qtd_empenhos || 0} (${formatarValor(c.total_empenhado||0)})${c.qtd_auditoria ? ' <span style="font-size:9px;color:var(--orange)">🔍+' + c.qtd_auditoria + ' auditoria</span>' : ''}</span></div>
+        <div class="field"><span>💰 Saldo</span><span class="val" style="color:${c.saldo_estourado ? 'var(--red)' : c.saldo_contrato < c.valor*0.1 ? 'var(--orange)' : 'var(--green)'}">${c.saldo_contrato !== undefined ? formatarValor(c.saldo_contrato) : '-'} ${c.saldo_estourado ? '🚨' : ''}</span></div>
+        <div class="field"><span>📋 Aditivos</span><span class="val">${c.tem_aditivos ? c.qtd_aditivos+' aditivo(s)' : 'Nenhum'}</span></div>
+        <div class="field"><span>🏛️ Modalidade</span><span class="val">${c.modalidade || '-'}</span></div>
+        <div class="field"><span>🏢 CPF/CNPJ</span><span class="val">${c.cnpj_prestador ? (c.cnpj_prestador.length === 14 ? c.cnpj_prestador.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5') : c.cnpj_prestador.length === 11 ? c.cnpj_prestador.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : c.cnpj_prestador) : '-'}</span></div>
+        <div class="field"><span>🏷️ Licitação</span><span class="val">${c.numero_licitacao || '-'}</span></div>
+        ${c.periodo ? '<div class="field"><span>📆 Ref.</span><span class="val">'+c.periodo+'</span></div>' : ''}
+      </div>
+      ${c.aditivos_resumo && c.aditivos_resumo.length > 0 ? '<div style="font-size:10px;margin-top:4px;padding-top:4px;border-top:1px dashed var(--border);color:var(--text-dim);line-height:1.4">'+c.aditivos_resumo.join('<br>')+'</div>' : ''}
+      <div class="objeto">${c.objeto || ''}</div>
+    </div>`;
+}
+
+function abrirDetalhe(contratoId) {
+  const c = CONTRATOS_DATA[contratoId];
+  if (!c) return;
+  
+  document.getElementById('modal-title').textContent = '#' + c.numero_contrato;
+  
+  const modalidades = {'22':'Concorrência','24':'Convite','30':'Pregão','35':'Dispensa','99':'Inexigibilidade','32':'Tomada de Preços','10':'','21':''};
+  
+  let html = '';
+  
+  // Status
+  html += '<div class="m-section">📌 Status</div>';
+  html += '<div class="m-row"><span class="m-label">Situação</span><span class="m-val" style="color:'+c.status_cor+'">'+c.status_label+'</span></div>';
+  
+  // Datas
+  html += '<div class="m-section">📅 Período</div>';
+  html += '<div class="m-row"><span class="m-label">Início</span><span class="m-val">'+ (c.inicio||'-') +'</span></div>';
+  
+  let terminoHtml = c.fim||'-';
+  if (c.data_fim_original && c.data_fim_original !== c.fim) terminoHtml += ' <span style="font-size:11px;color:var(--text-dim);text-decoration:line-through">'+c.data_fim_original+'</span>';
+  html += '<div class="m-row"><span class="m-label">Término</span><span class="m-val">'+terminoHtml+'</span></div>';
+  
+  if (c.dias_restantes !== null) {
+    const cor = c.dias_restantes < 0 ? 'var(--red)' : c.dias_restantes <= 15 ? 'var(--orange)' : c.dias_restantes <= 30 ? 'var(--yellow)' : 'var(--green)';
+    html += '<div class="m-row"><span class="m-label">Dias restantes</span><span class="m-val" style="color:'+cor+'">'+(c.dias_restantes < 0 ? 'Vencido há '+Math.abs(c.dias_restantes)+' dias' : c.dias_restantes+' dias')+'</span></div>';
+  }
+  
+  // Valor
+  html += '<div class="m-section">💰 Valor</div>';
+  let valorHtml = '<span class="money">'+formatarValor(c.valor)+'</span>';
+  if (c.valor_original && c.valor_original !== c.valor) valorHtml += ' <span style="font-size:11px;color:var(--text-dim);text-decoration:line-through">'+formatarValor(c.valor_original)+'</span>';
+  html += '<div class="m-row"><span class="m-label">Valor Contrato</span><span class="m-val">'+valorHtml+'</span></div>';
+  
+  // Empenhos vinculados
+  html += '<div class="m-section">📋 Empenhos Vinculados</div>';
+  html += '<div class="m-row"><span class="m-label">Qtd Empenhos</span><span class="m-val">'+(c.qtd_empenhos||0)+'</span></div>';
+  html += '<div class="m-row"><span class="m-label">Total Empenhado</span><span class="m-val" class="money">'+formatarValor(c.total_empenhado||0)+'</span></div>';
+  const saldoCor = c.saldo_estourado ? 'var(--red)' : 'var(--green)';
+  html += '<div class="m-row"><span class="m-label">Saldo</span><span class="m-val" style="color:'+saldoCor+'">'+formatarValor(c.saldo_contrato||0)+' '+(c.saldo_estourado?'🚨 ESTOURADO':'')+'</span></div>';
+  html += '<div class="m-row"><span class="m-label">Ordenado a partir</span><span class="m-val">'+(c.ordenado_apartir||'-')+'</span></div>';
+
+
+  // Partes
+  html += '<div class="m-section">🏛️ Partes</div>';
+  html += '<div class="m-row"><span class="m-label">UG</span><span class="m-val">'+ (c.ug||'-') +'</span></div>';
+  if (c.cnpj_prestador) {
+    const docFmt = c.cnpj_prestador.length === 14 
+      ? c.cnpj_prestador.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+      : c.cnpj_prestador.length === 11
+        ? c.cnpj_prestador.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+        : c.cnpj_prestador;
+    html += '<div class="m-row"><span class="m-label">CPF/CNPJ Prestador</span><span class="m-val" style="font-size:12px">'+docFmt+'</span></div>';
+  }
+  
+  // Licitação
+  html += '<div class="m-section">🏷️ Licitação</div>';
+  html += '<div class="m-row"><span class="m-label">Nº Licitação</span><span class="m-val">'+ (c.numero_licitacao||'-') +'</span></div>';
+  html += '<div class="m-row"><span class="m-label">Modalidade</span><span class="m-val">'+(modalidades[c.modalidade]||c.modalidade||'-')+'</span></div>';
+  if (c.periodo) html += '<div class="m-row"><span class="m-label">Referência</span><span class="m-val">'+c.periodo+'</span></div>';
+  
+  // Aditivos
+  if (c.tem_aditivos && c.aditivos && c.aditivos.length > 0) {
+    html += '<div class="m-section">📋 Aditivos ('+c.qtd_aditivos+')</div>';
+    c.aditivos.forEach(a => {
+      const tipo = a.prorrogacao && a.acrescimo_valor ? '⏱️+💰' : a.prorrogacao ? '⏱️' : a.acrescimo_valor ? '💰' : '📋';
+      html += '<div class="m-row" style="font-size:12px">';
+      html += '<span class="m-label">'+tipo+' Aditivo '+a.aditivo_numero+'/'+a.aditivo_ano+'</span>';
+      const sub = [];
+      if (a.nova_data) sub.push('→ '+a.nova_data);
+      if (a.valor > 0) sub.push('+R$ '+a.valor.toFixed(2));
+      html += '<span class="m-val" style="font-size:11px">'+sub.join(' · ')+'</span>';
+      html += '</div>';
+    });
+  }
+  
+  // Objeto
+  html += '<div class="m-section">📝 Objeto</div>';
+  html += '<div class="m-objeto">'+(c.objeto||'Sem descrição')+'</div>';
+  
+  // Aditivos resumo (texto)
+  if (c.aditivos_resumo && c.aditivos_resumo.length > 0) {
+    html += '<div class="m-aditivos">'+c.aditivos_resumo.join('<br>')+'</div>';
+  }
+  
+  // Empenhos vinculados (lista detalhada)
+  if (c.empenhos && c.empenhos.length > 0) {
+    html += '<div class="m-section" style="margin-top:8px">📋 Empenhos ('+c.empenhos.length+')</div>';
+    c.empenhos.slice(0, 10).forEach(e => {
+      html += '<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--border);line-height:1.4">';
+      html += '<div style="display:flex;justify-content:space-between">';
+      html += '<span>#'+e.numero_empenho+'</span>';
+      html += '<span class="money" style="color:var(--green);font-weight:500">'+formatarValor(e.valor)+'</span>';
+      html += '</div>';
+      html += '<div style="color:var(--text-dim);font-size:10px">'+ (e.competencia||'') +' · '+e.cnpj+'</div>';
+      html += '<div style="display:flex;align-items:center;gap:4px;margin-top:2px">';
+      html += '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:'+e.confianca_cor+'22;color:'+e.confianca_cor+';border:1px solid '+e.confianca_cor+'44">'+e.confianca_label+'</span>';
+      html += '<span style="font-size:9px;color:var(--text-dim)">score: '+(e.score_semantico||0)+' · match: '+e.origem_matching+'</span>';
+      html += '</div>';
+      if (e.historico) html += '<div style="color:var(--text-dim);font-size:9px;margin-top:1px">'+e.historico.substring(0,80)+'...</div>';
+      html += '</div>';
+    });
+    if (c.empenhos.length > 10) {
+      html += '<div style="font-size:10px;color:var(--text-dim);margin-top:4px">... mais '+(c.empenhos.length-10)+' empenhos</div>';
+    }
+  }
+  
+  // Auditoria: empenhos com score=0 (não consomem saldo)
+  if (c.auditoria && c.auditoria.length > 0) {
+    html += '<div class="m-section" style="margin-top:12px;border-top:2px dashed var(--orange);padding-top:8px">🔍 Auditoria ('+c.auditoria.length+')</div>';
+    html += '<div style="font-size:10px;color:var(--orange);margin-bottom:6px">⚠️ Empenhos não somados ao saldo — histórico diverge do objeto do contrato</div>';
+    c.auditoria.forEach(e => {
+      html += '<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--border);line-height:1.4;opacity:0.85">';
+      html += '<div style="display:flex;justify-content:space-between">';
+      html += '<span>#'+e.numero_empenho+'</span>';
+      html += '<span class="money" style="color:var(--orange);font-weight:500">'+formatarValor(e.valor)+'</span>';
+      html += '</div>';
+      html += '<div style="color:var(--text-dim);font-size:10px">'+ (e.competencia||'') +' · '+e.cnpj+'</div>';
+      html += '<div style="display:flex;align-items:center;gap:4px;margin-top:2px">';
+      html += '<span style="font-size:9px;padding:1px 5px;border-radius:3px;background:'+e.confianca_cor+'22;color:'+e.confianca_cor+';border:1px solid '+e.confianca_cor+'44">'+e.confianca_label+'</span>';
+      html += '<span style="font-size:9px;color:var(--text-dim)">score: '+(e.score_semantico||0)+' · match: '+e.origem_matching+'</span>';
+      html += '</div>';
+      if (e.historico) html += '<div style="color:var(--text-dim);font-size:9px;margin-top:1px">📝 Histórico: '+e.historico.substring(0,80)+'...</div>';
+      html += '<div style="color:var(--orange);font-size:9px;margin-top:1px">⛔ Motivo: '+(e.motivo_desc||'score semântico zero — histórico do empenho não tem correlação com o objeto do contrato')+'</div>';
+      html += '</div>';
+    });
+  }
+  
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal').classList.remove('hidden');
+}
+
+// ====== CENTRAL DE NOTIFICAÇÕES ======
+let NOTIF_MODULO = 'gestor';
+
+function abrirNotificacoes() {
+  document.getElementById('notif-modal').classList.remove('hidden');
+  NOTIF_MODULO = 'gestor';
+  carregarContatos();
+}
+
+function fecharNotif() {
+  document.getElementById('notif-modal').classList.add('hidden');
+  document.getElementById('notif-form').style.display = 'none';
+  document.getElementById('notif-log').style.display = 'none';
+  document.getElementById('notif-resultado').innerHTML = '';
+}
+
+function selModulo(mod) {
+  NOTIF_MODULO = mod;
+  document.querySelectorAll('.notif-tab').forEach(b => {
+    b.style.borderColor = 'var(--border)';
+    b.style.background = 'var(--card2)';
+    b.classList.remove('ativo');
+  });
+  const btn = document.querySelector(`.notif-tab[data-mod="${mod}"]`);
+  if (btn) {
+    btn.style.borderColor = 'var(--text)';
+    btn.style.background = 'var(--card)';
+    btn.classList.add('ativo');
+  }
+  document.getElementById('notif-form').style.display = 'none';
+  document.getElementById('notif-log').style.display = 'none';
+  carregarContatos();
+}
+
+async function carregarContatos() {
+  const div = document.getElementById('notif-contatos');
+  div.innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center">Carregando...</div>';
+  try {
+    const r = await fetch(`${API}/api/notificacoes/contatos?modulo=${NOTIF_MODULO}`);
+    const d = await r.json();
+    if (!d.contatos || d.contatos.length === 0) {
+      div.innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center;font-size:13px">📭 Nenhum contato cadastrado neste módulo.<br>Clique em <strong>＋ Novo contato</strong> para adicionar.</div>';
+      return;
+    }
+    let html = '';
+    d.contatos.forEach(c => {
+      const tiposAtivos = [];
+      if (c.notificacoes?.prazo_vencimento) tiposAtivos.push('📅 Prazo');
+      if (c.notificacoes?.saldo_estourado) tiposAtivos.push('🚨 Estouro');
+      if (c.notificacoes?.saldo_restante) tiposAtivos.push('💰 Saldo');
+      if (c.notificacoes?.contratos_a_vencer) tiposAtivos.push('📋 A vencer');
+      const qtdContratos = c.contratos_todos ? 'Todos' : (c.contratos?.length || 0);
+      html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px">`;
+      html += `<div style="display:flex;justify-content:space-between;align-items:flex-start">`;
+      html += `<div><strong>${c.nome}</strong> <span style="color:var(--text-dim);font-size:11px">📞 ${c.telefone.replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, '+$1 $2 $3-$4')}</span></div>`;
+      html += `<div style="display:flex;gap:4px"><button onclick="editarContato('${c.id}')" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer">✏️</button><button onclick="excluirContato('${c.id}')" style="font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid var(--red);background:var(--red-bg);color:var(--red);cursor:pointer">🗑️</button></div>`;
+      html += `</div>`;
+      html += `<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;font-size:11px">`;
+      html += `<span style="color:var(--text-dim)">📋 ${qtdContratos} contratos</span>`;
+      html += `<span style="color:var(--text-dim)">📆 ${c.dias_antecedencia} dias</span>`;
+      html += `<span style="color:var(--text-dim)">⏰ ${c.ultima_notificacao ? new Date(c.ultima_notificacao).toLocaleDateString('pt-BR') : 'Nunca notificado'}</span>`;
+      html += `</div>`;
+      html += `<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap">${tiposAtivos.map(t => `<span style="font-size:9px;padding:1px 6px;border-radius:3px;background:var(--green-bg);color:var(--green)">${t}</span>`).join('')}</div>`;
+      // Canais configurados
+      const canais = [];
+      if (c.telefone) canais.push('📞 WhatsApp');
+      if (c.telegram_chat_id) canais.push('📱 Telegram');
+      if (c.discord_webhook) canais.push('💬 Discord');
+      if (canais.length) html += `<div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;font-size:9px">${canais.map(cn => `<span style="padding:1px 6px;border-radius:3px;background:rgba(59,130,246,0.15);color:var(--blue)">${cn}</span>`).join('')}</div>`;
+      html += `</div>`;
+    });
+    div.innerHTML = html;
+  } catch(e) {
+    div.innerHTML = `<div style="color:var(--red);padding:20px;text-align:center">❌ Erro: ${e.message}</div>`;
+  }
+}
+
+function novoContato() {
+  document.getElementById('notif-form').style.display = 'block';
+  document.getElementById('notif-log').style.display = 'none';
+  document.getElementById('notif-form').innerHTML = `
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px">
+      <h3 style="font-size:14px;margin-bottom:12px">${'＋ Novo contato'} - ${NOTIF_MODULO === 'gestor' ? '🏛️ Gestor' : NOTIF_MODULO === 'fornecedor' ? '🏢 Fornecedor' : '📋 CPL'}</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">Nome *</label><input id="nf-nome" class="modal-input" placeholder="Nome do contato" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px"></div>
+        <div><label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">Telefone *</label><input id="nf-tel" class="modal-input" placeholder="5583987654321" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+        <div><label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">📱 Telegram Chat ID</label><input id="nf-telegram" class="modal-input" placeholder="1234567890" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px"></div>
+        <div><label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">💬 Discord Webhook URL</label><input id="nf-discord" class="modal-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px"></div>
+      </div>
+      <div style="margin-top:10px">
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">Contratos</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <select id="nf-contratos" multiple style="flex:1;min-height:60px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:11px"></select>
+          <div style="font-size:10px;color:var(--text-dim)">Segure Ctrl para selecionar vários</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="nf-todos" onchange="document.getElementById('nf-contratos').disabled=this.checked"> Todos os contratos da UG</label>
+      </div>
+      <div style="margin-top:10px">
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:6px">Notificações</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" id="nf-prazo" checked> 📅 Prazo vencimento</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" id="nf-estouro" checked> 🚨 Saldo estourado</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" id="nf-saldo"> 💰 Saldo restante (&lt;10%)</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" id="nf-vencer"> 📋 Contratos a vencer (30d)</label>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+        <label style="font-size:11px;color:var(--text-dim)">📆 Antecedência:</label>
+        <input type="number" id="nf-dias" value="15" min="1" max="90" style="width:60px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;text-align:center">
+        <span style="font-size:11px;color:var(--text-dim)">dias</span>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button onclick="salvarContato()" style="padding:6px 16px;border-radius:6px;border:none;background:var(--green);color:#fff;font-weight:600;font-size:12px;cursor:pointer">💾 Salvar</button>
+          <button onclick="cancelarForm()" style="padding:6px 16px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--text-dim);font-size:12px;cursor:pointer">Cancelar</button>
+        </div>
+      </div>
+    </div>
+    <div id="nf-feedback" style="font-size:12px"></div>
+  `;
+  // Carregar contratos para o select
+  carregarContratosSelect();
+}
+
+function carregarContratosSelect() {
+  const select = document.getElementById('nf-contratos');
+  if (!select) return;
+  const ug = document.getElementById('ug-input').value.trim() || '201115';
+  fetch(`${API}/api/monitorar/contratos/${ug}?ano_inicio=2026&limite=500`)
+    .then(r => r.json())
+    .then(d => {
+      (d.contratos || []).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.numero_contrato;
+        opt.textContent = `#${c.numero_contrato} - ${(c.objeto||'').substring(0, 50)}...`;
+        select.appendChild(opt);
+      });
+    })
+    .catch(() => {});
+}
+
+async function salvarContato() {
+  const fb = document.getElementById('nf-feedback');
+  const nome = document.getElementById('nf-nome')?.value?.trim();
+  const tel = document.getElementById('nf-tel')?.value?.trim();
+  if (!nome || !tel) {
+    fb.innerHTML = '<span style="color:var(--red)">❌ Nome e telefone são obrigatórios</span>';
+    return;
+  }
+  const select = document.getElementById('nf-contratos');
+  const contratos = document.getElementById('nf-todos')?.checked ? [] : Array.from(select?.selectedOptions || []).map(o => o.value);
+  const dados = {
+    modulo: NOTIF_MODULO,
+    nome,
+    telefone: tel,
+    contratos,
+    contratos_todos: document.getElementById('nf-todos')?.checked || false,
+    telegram_chat_id: document.getElementById('nf-telegram')?.value?.trim() || null,
+    discord_webhook: document.getElementById('nf-discord')?.value?.trim() || null,
+    notificacoes: {
+      prazo_vencimento: document.getElementById('nf-prazo')?.checked || false,
+      saldo_estourado: document.getElementById('nf-estouro')?.checked || false,
+      saldo_restante: document.getElementById('nf-saldo')?.checked || false,
+      contratos_a_vencer: document.getElementById('nf-vencer')?.checked || false
+    },
+    dias_antecedencia: parseInt(document.getElementById('nf-dias')?.value) || 15
+  };
+  fb.innerHTML = '<span style="color:var(--text-dim)">⏳ Salvando...</span>';
+  try {
+    const r = await fetch(`${API}/api/notificacoes/contatos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados)
+    });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      fb.innerHTML = '<span style="color:var(--green)">✅ Contato cadastrado com sucesso!</span>';
+      document.getElementById('notif-form').style.display = 'none';
+      carregarContatos();
+    } else {
+      fb.innerHTML = `<span style="color:var(--red)">❌ ${d.error || 'Erro ao salvar'}</span>`;
+    }
+  } catch(e) {
+    fb.innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+  }
+}
+
+function cancelarForm() {
+  document.getElementById('notif-form').style.display = 'none';
+}
+
+async function editarContato(id) {
+  const r = await fetch(`${API}/api/notificacoes/contatos?modulo=${NOTIF_MODULO}`);
+  const d = await r.json();
+  const c = d.contatos.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('notif-form').style.display = 'block';
+  document.getElementById('notif-log').style.display = 'none';
+  document.getElementById('notif-form').innerHTML = `
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px">
+      <h3 style="font-size:14px;margin-bottom:12px">✏️ Editando ${c.nome}</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">Nome</label><input id="nf-nome" value="${c.nome}" class="modal-input" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px"></div>
+        <div><label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">Telefone</label><input id="nf-tel" value="${c.telefone}" class="modal-input" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+        <div><label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">📱 Telegram Chat ID</label><input id="nf-telegram" value="${c.telegram_chat_id||''}" class="modal-input" placeholder="1234567890" style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px"></div>
+        <div><label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">💬 Discord Webhook URL</label><input id="nf-discord" value="${c.discord_webhook||''}" class="modal-input" placeholder="https://discord.com/api/webhooks/..." style="width:100%;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px"></div>
+      </div>
+      <div style="margin-top:10px">
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px">Contratos (selecione novamente para atualizar)</label>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <select id="nf-contratos" multiple style="flex:1;min-height:60px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:11px"></select>
+          <div style="font-size:10px;color:var(--text-dim)">Segure Ctrl</div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" id="nf-todos" ${c.contratos_todos ? 'checked' : ''} onchange="document.getElementById('nf-contratos').disabled=this.checked"> Todos os contratos</label>
+      </div>
+      <div style="margin-top:10px">
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:6px">Notificações</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" id="nf-prazo" ${c.notificacoes?.prazo_vencimento ? 'checked' : ''}> 📅 Prazo vencimento</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" id="nf-estouro" ${c.notificacoes?.saldo_estourado ? 'checked' : ''}> 🚨 Saldo estourado</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" id="nf-saldo" ${c.notificacoes?.saldo_restante ? 'checked' : ''}> 💰 Saldo restante</label>
+          <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer"><input type="checkbox" id="nf-vencer" ${c.notificacoes?.contratos_a_vencer ? 'checked' : ''}> 📋 A vencer</label>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+        <label style="font-size:11px;color:var(--text-dim)">📆 Antecedência:</label>
+        <input type="number" id="nf-dias" value="${c.dias_antecedencia || 15}" min="1" max="90" style="width:60px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;text-align:center">
+        <span style="font-size:11px;color:var(--text-dim)">dias</span>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <button onclick="atualizarContato('${id}')" style="padding:6px 16px;border-radius:6px;border:none;background:var(--blue);color:#fff;font-weight:600;font-size:12px;cursor:pointer">💾 Atualizar</button>
+          <button onclick="cancelarForm()" style="padding:6px 16px;border-radius:6px;border:1px solid var(--border);background:var(--card2);color:var(--text-dim);font-size:12px;cursor:pointer">Cancelar</button>
+        </div>
+      </div>
+    </div>
+    <div id="nf-feedback" style="font-size:12px"></div>
+  `;
+  carregarContratosSelect();
+}
+
+async function atualizarContato(id) {
+  const dados = {
+    nome: document.getElementById('nf-nome')?.value?.trim(),
+    telefone: document.getElementById('nf-tel')?.value?.trim(),
+    contratos_todos: document.getElementById('nf-todos')?.checked || false,
+    contratos: document.getElementById('nf-todos')?.checked ? [] : Array.from(document.getElementById('nf-contratos')?.selectedOptions || []).map(o => o.value),
+    telegram_chat_id: document.getElementById('nf-telegram')?.value?.trim() || null,
+    discord_webhook: document.getElementById('nf-discord')?.value?.trim() || null,
+    notificacoes: {
+      prazo_vencimento: document.getElementById('nf-prazo')?.checked || false,
+      saldo_estourado: document.getElementById('nf-estouro')?.checked || false,
+      saldo_restante: document.getElementById('nf-saldo')?.checked || false,
+      contratos_a_vencer: document.getElementById('nf-vencer')?.checked || false
+    },
+    dias_antecedencia: parseInt(document.getElementById('nf-dias')?.value) || 15
+  };
+  const fb = document.getElementById('nf-feedback');
+  try {
+    const r = await fetch(`${API}/api/notificacoes/contatos/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados)
+    });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      fb.innerHTML = '<span style="color:var(--green)">✅ Atualizado!</span>';
+      document.getElementById('notif-form').style.display = 'none';
+      carregarContatos();
+    } else {
+      fb.innerHTML = `<span style="color:var(--red)">❌ ${d.error || 'Erro'}</span>`;
+    }
+  } catch(e) {
+    fb.innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+  }
+}
+
+async function excluirContato(id) {
+  if (!confirm('Tem certeza que deseja excluir este contato?')) return;
+  try {
+    const r = await fetch(`${API}/api/notificacoes/contatos/${id}`, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      document.getElementById('notif-resultado').innerHTML = '<span style="color:var(--green)">✅ Contato removido</span>';
+      carregarContatos();
+    }
+  } catch(e) {}
+}
+
+async function dispararNotificacoes() {
+  const ug = document.getElementById('ug-input').value.trim() || '201115';
+  const div = document.getElementById('notif-resultado');
+  div.innerHTML = '<span style="color:var(--text-dim)">⏳ Disparando notificações...</span>';
+  try {
+    const r = await fetch(`${API}/api/notificacoes/disparar/${ug}?modulo=${NOTIF_MODULO}`);
+    const d = await r.json();
+    if (d.status === 'ok') {
+      div.innerHTML = `<span style="color:var(--green)">✅ ${d.notificacoes_enviadas} notificação(is) enviada(s) para ${d.total_contratos} contratos</span>`;
+      carregarContatos();
+    } else {
+      div.innerHTML = `<span style="color:var(--red)">❌ ${d.error || 'Erro'}</span>`;
+    }
+  } catch(e) {
+    div.innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+  }
+}
+
+async function mostrarLog() {
+  document.getElementById('notif-log').style.display = 'block';
+  document.getElementById('notif-form').style.display = 'none';
+  const div = document.getElementById('notif-log');
+  div.innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center">Carregando histórico...</div>';
+  try {
+    const r = await fetch(`${API}/api/notificacoes/log?modulo=${NOTIF_MODULO}&limite=30`);
+    const d = await r.json();
+    if (!d.log || d.log.length === 0) {
+      div.innerHTML = '<div style="color:var(--text-dim);padding:20px;text-align:center;font-size:13px">📭 Nenhuma notificação enviada ainda.</div>';
+      return;
+    }
+    let html = '<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px">Últimas ' + d.log.length + ' notificações</div>';
+    d.log.forEach(e => {
+      const data = new Date(e.timestamp);
+      html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:11px">`;
+      html += `<div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim)">📞 ${e.destino} · ${e.modulo}</span><span style="color:var(--text-dim)">${data.toLocaleString('pt-BR')}</span></div>`;
+      html += `<div style="margin-top:2px;white-space:pre-wrap;color:var(--text)">${e.mensagem}</div>`;
+      html += `</div>`;
+    });
+    div.innerHTML = html;
+  } catch(e) {
+    div.innerHTML = `<div style="color:var(--red)">❌ ${e.message}</div>`;
+  }
+}
+</script>
+</body>
+</html>
